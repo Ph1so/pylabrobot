@@ -19,8 +19,8 @@ class OpentronsTemperatureModuleV2(TemperatureController, OTModule):
       name: Name of the temperature module.
       opentrons_id: Opentrons ID of the temperature module. Get it from
         `OpentronsBackend(host="x.x.x.x", port=31950).list_connected_modules()`.
-      tube_rack: Optional tube rack to use on the temperature controlled module. Get it from
-        `from pylabrobot.resources.opentrons.tube_racks import *`
+      child: Optional child resource like a tube rack or well plate to use on the
+        temperature controller module.
     """
 
     super().__init__(
@@ -30,7 +30,7 @@ class OpentronsTemperatureModuleV2(TemperatureController, OTModule):
       size_z=84.0, # height without any aluminum block
       backend=OpentronsTemperatureModuleBackend(opentrons_id=opentrons_id),
       category="temperature_controller",
-      model="opentrons_temperature_module_v2"
+      model="temperatureModuleV2"  # Must match OT moduleModel in list_connected_modules()
     )
 
     self.backend = OpentronsTemperatureModuleBackend(opentrons_id=opentrons_id)
