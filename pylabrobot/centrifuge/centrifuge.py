@@ -34,8 +34,18 @@ class AgilentCentrifuge(CentrifugeBackend):
         self.dev.ftdi_fn.ftdi_usb_purge_buffers()
         self.dev.ftdi_fn.ftdi_usb_reset()
 
+        # reset USB pipe and clear any stalls on the USB pipe
+        endpoint_address = 0x81
+        direction = 'IN'
+
+        self.dev.usb_dev.reset_endpoint(endpoint_address, direction)
+        self.dev.usb_dev.clear_halt(endpoint_address)
+
+        #set lat timer
         self.dev.ftdi_fn.ftdi_set_latency_timer(16)
         self.dev.read(64)
+
+        await self.getModemStat()
 
         self.dev.ftdi_fn.ftdi_set_line_property(8, 1, 0) # 8 bit size, 1 stop bit, no parity
         self.dev.ftdi_fn.ftdi_setdtr(True)
@@ -50,9 +60,24 @@ class AgilentCentrifuge(CentrifugeBackend):
         self.dev.ftdi_fn.ftdi_set_line_property(8, 1, 0) # 8 bit size, 1 stop bit, no parity
         self.dev.ftdi_fn.ftdi_setflowctrl(0)
 
-        
         # await self.initialize() # TODO: test initialize()
         # await self.request_eeprom_data() # TODO: write request eeprom data()
+
+    async def getModemStat(self):
+        bmRequestType = 0xC0
+        bRequest = 0x05
+        wValue = 0
+        wIndex = 0
+        wLength = 2
+
+        response = self.dev.ctrl_transfer(bmRequestType, bRequest, wValue, wIndex, wLength)
+
+        if len(response) == 2:
+            modem_status = response[0] | (response[1] << 8)
+            print(f"Modem status: {modem_status}")
+        else:
+            print("Unexpected response lenght.")
+
 
     async def stop(self):
         if self.dev is not None:
