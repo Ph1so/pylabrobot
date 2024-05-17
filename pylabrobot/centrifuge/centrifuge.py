@@ -29,38 +29,23 @@ class AgilentCentrifuge(CentrifugeBackend):
 
         self.dev = Device()
         self.dev.open()
+        print(self.dev, "open")
 
-        self.dev.ftdi_fn.ftdi_usb_purge_buffers()
-        self.dev.ftdi_fn.ftdi_usb_purge_buffers()
-        self.dev.ftdi_fn.ftdi_usb_reset()
-
-        # reset USB pipe and clear any stalls on the USB pipe
-        endpoint_address = 0x81
-        direction = 'IN'
-
-        self.dev.usb_dev.reset_endpoint(endpoint_address, direction)
-        self.dev.usb_dev.clear_halt(endpoint_address)
-
-        #set lat timer
-        self.dev.ftdi_fn.ftdi_set_latency_timer(16)
-        self.dev.read(64)
-
-        await self.getModemStat()
-
-        self.dev.ftdi_fn.ftdi_set_line_property(8, 1, 0) # 8 bit size, 1 stop bit, no parity
-        self.dev.ftdi_fn.ftdi_setdtr(True)
-        self.dev.ftdi_fn.ftdi_setrts(True)
-
-        self.dev.ftdi_fn.ftdi_setflowctrl(0)
-        self.dev.baudrate = 9600 # TODO: this is standard baud rate, but not the one that the robot uses I believe - alternatively can try all baud rates
-
-        self.dev.ftdi_fn.ftdi_setrts(True)
-        self.dev.ftdi_fn.ftdi_setdtr(True)
-
-        self.dev.ftdi_fn.ftdi_set_line_property(8, 1, 0) # 8 bit size, 1 stop bit, no parity
-        self.dev.ftdi_fn.ftdi_setflowctrl(0)
-
-        # await self.initialize() # TODO: test initialize()
+        await self.firstInit()
+        await self.initialize()
+        await self.secondInit()
+        await self.initialize()
+        await self.secondInit()
+        await self.sendsix()
+        await self.firstInit()
+        await self.initialize()
+        await self.secondInit()
+        await self.initialize()
+        await self.secondInit()
+        await self.sendsix()
+        await self.firstInit()
+        await self.initialize()
+        
         # await self.request_eeprom_data() # TODO: write request eeprom data()
 
     async def getModemStat(self):
@@ -77,7 +62,6 @@ class AgilentCentrifuge(CentrifugeBackend):
             print(f"Modem status: {modem_status}")
         else:
             print("Unexpected response lenght.")
-
 
     async def stop(self):
         if self.dev is not None:
@@ -123,15 +107,13 @@ class AgilentCentrifuge(CentrifugeBackend):
 
         return d
 
-    async def send(self, cmd: Union[bytearray, bytes], read_timeout=20):
+    async def send(self, cmd: Union[bytearray, bytes], read_timeout=0.5):
         """ Send a command to the centrifuge and return the response. """
 
         if self.dev is None:
             raise RuntimeError("Device not initialized")
 
         logger.debug("sending %s", cmd.hex())
-
-        # TODO: cmd = 4 start bytes + cmd (content / unique) + 4 bytes + 5 bytes
 
         # w = self.dev.write(cmd)
         w = self.dev.write(cmd.decode('latin-1'))
@@ -148,6 +130,47 @@ class AgilentCentrifuge(CentrifugeBackend):
         status = await self.send(bytearray([0xaa, 0x01, 0x0e, 0x0f]))
         return status
 
+    async def firstInit(self):
+        self.dev.ftdi_fn.ftdi_usb_purge_buffers()
+        self.dev.ftdi_fn.ftdi_usb_purge_buffers()
+        self.dev.ftdi_fn.ftdi_usb_reset()
+
+        # reset USB pipe and clear any stalls on the USB pipe
+        # endpoint_address = 0x81
+        # direction = 'IN'
+
+        # self.dev.usb_dev.reset_endpoint(endpoint_address, direction)
+        # self.dev.usb_dev.clear_halt(endpoint_address)
+
+        #set lat timer
+        self.dev.ftdi_fn.ftdi_set_latency_timer(16)
+        self.dev.read(64)
+
+        # await self.getModemStat()
+
+        self.dev.ftdi_fn.ftdi_set_line_property(8, 1, 0) # 8 bit size, 1 stop bit, no parity
+        self.dev.ftdi_fn.ftdi_setdtr(True)
+
+        self.dev.ftdi_fn.ftdi_setrts(True)
+
+        self.dev.ftdi_fn.ftdi_setflowctrl(0)
+        self.dev.baudrate = 19200
+
+        self.dev.ftdi_fn.ftdi_setrts(True)
+        self.dev.ftdi_fn.ftdi_setdtr(True)
+
+        self.dev.ftdi_fn.ftdi_set_line_property(8, 1, 0) # 8 bit size, 1 stop bit, no parity
+        self.dev.ftdi_fn.ftdi_setflowctrl(0)
+
+    async def secondInit(self):
+        self.dev.baudrate = 19200
+
+        self.dev.ftdi_fn.ftdi_setrts(True)
+        self.dev.ftdi_fn.ftdi_setdtr(True)
+
+        self.dev.ftdi_fn.ftdi_set_line_property(8, 1, 0) # 8 bit size, 1 stop bit, no parity
+        self.dev.ftdi_fn.ftdi_setflowctrl(0)
+
     async def initialize(self):
         for i in range(33):
             packet = b"\xaa"  # First byte is constant
@@ -155,14 +178,14 @@ class AgilentCentrifuge(CentrifugeBackend):
             packet += b"\x0e"  # Third byte is constant
             packet += bytes([0x0e + (i & 0xFF)])  # Fourth byte increments from 0x0e
             packet += bytes([0x00] * 8)  # Remaining 8 bytes are zeros
-            await self.send(packet)
+            self.dev.write(packet)
 
         packet = b""
         packet += b"\xaa\xff\x0f\x0e"
         check = await self.send(packet)
-        print(check)
         if check == 0x89:
-            print("Initialization successful")
-        else:
-            print("Initialization failed")
-        return check
+            print("Initialization succesful")
+
+    async def sendsix(self):
+        await self.send(b"\xaa\x00\x21\x01\xff\x21")
+
