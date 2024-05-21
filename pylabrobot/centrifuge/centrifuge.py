@@ -45,7 +45,7 @@ class AgilentCentrifuge(CentrifugeBackend):
         await self.sendsix()
         await self.firstInit()
         await self.initialize()
-        
+
         # await self.request_eeprom_data() # TODO: write request eeprom data()
 
     async def getModemStat(self):
@@ -68,8 +68,7 @@ class AgilentCentrifuge(CentrifugeBackend):
             self.dev.close()
 
     async def read_resp(self, timeout=20) -> bytes:
-        """ Read a response from the plate reader. If the timeout is reached, return the data that has
-    been read so far. """
+        """ Read a response from the centrifuge. """
 
         if self.dev is None:
             raise RuntimeError("device not initialized")
@@ -79,10 +78,6 @@ class AgilentCentrifuge(CentrifugeBackend):
         end_byte_found = False
         t = time.time()
 
-    # Commands are terminated with 0x0d, but this value may also occur as a part of the response.
-    # Therefore, we read until we read a 0x0d, but if that's the last byte we read in a full packet,
-    # we keep reading for at least one more cycle. We only check the timeout if the last read was
-    # unsuccessful (i.e. keep reading if we are still getting data).
         while True:
             last_read = self.dev.read(25) # 25 is max length observed in pcap
             if len(last_read) > 0:
@@ -125,10 +120,6 @@ class AgilentCentrifuge(CentrifugeBackend):
 
         resp = await self.read_resp(timeout=read_timeout)
         return resp
-
-    async def read_command_status(self): # TODO: fix after fixing send()
-        status = await self.send(bytearray([0xaa, 0x01, 0x0e, 0x0f]))
-        return status
 
     async def firstInit(self):
         self.dev.ftdi_fn.ftdi_usb_purge_buffers()
