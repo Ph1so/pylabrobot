@@ -37,38 +37,19 @@ class AgilentCentrifuge(CentrifugeBackend):
         await self.initialize()
         await self.secondInit()
         await self.sendsix()
-        await self.firstInit()
-        await self.initialize()
-        await self.secondInit()
-        await self.initialize()
-        await self.secondInit()
-        await self.sendsix()
-        await self.firstInit()
-        await self.initialize()
-
-        # await self.request_eeprom_data() # TODO: write request eeprom data()
-
-    async def getModemStat(self):
-        bmRequestType = 0xC0
-        bRequest = 0x05
-        wValue = 0
-        wIndex = 0
-        wLength = 2
-
-        response = self.dev.ctrl_transfer(bmRequestType, bRequest, wValue, wIndex, wLength)
-
-        if len(response) == 2:
-            modem_status = response[0] | (response[1] << 8)
-            print(f"Modem status: {modem_status}")
-        else:
-            print("Unexpected response lenght.")
+        await self.afterSix()
+        await self.finishSetup()
 
     async def stop(self):
+        await self.send(b"\xaa\x02\x0e\x10")
+        await self.initialize()
+        await self.secondInit()
         if self.dev is not None:
             self.dev.close()
 
     async def read_resp(self, timeout=20) -> bytes:
-        """ Read a response from the centrifuge. """
+        """ Read a response from the plate reader. If the timeout is reached, return the data that has
+    been read so far. """
 
         if self.dev is None:
             raise RuntimeError("device not initialized")
@@ -78,6 +59,10 @@ class AgilentCentrifuge(CentrifugeBackend):
         end_byte_found = False
         t = time.time()
 
+    # Commands are terminated with 0x0d, but this value may also occur as a part of the response.
+    # Therefore, we read until we read a 0x0d, but if that's the last byte we read in a full packet,
+    # we keep reading for at least one more cycle. We only check the timeout if the last read was
+    # unsuccessful (i.e. keep reading if we are still getting data).
         while True:
             last_read = self.dev.read(25) # 25 is max length observed in pcap
             if len(last_read) > 0:
@@ -102,7 +87,7 @@ class AgilentCentrifuge(CentrifugeBackend):
 
         return d
 
-    async def send(self, cmd: Union[bytearray, bytes], read_timeout=0.5):
+    async def send(self, cmd: Union[bytearray, bytes], read_timeout = 1):
         """ Send a command to the centrifuge and return the response. """
 
         if self.dev is None:
@@ -119,50 +104,26 @@ class AgilentCentrifuge(CentrifugeBackend):
         assert w == len(cmd)
 
         resp = await self.read_resp(timeout=read_timeout)
+        print(resp)
         return resp
 
+    async def read_command_status(self): # TODO: fix after fixing send()
+        status = await self.send(bytearray([0xaa, 0x01, 0x0e, 0x0f]))
+        return status
+
     async def firstInit(self):
-        self.dev.ftdi_fn.ftdi_usb_purge_buffers()
-        self.dev.ftdi_fn.ftdi_usb_purge_buffers()
-        self.dev.ftdi_fn.ftdi_usb_reset()
-
-        # reset USB pipe and clear any stalls on the USB pipe
-        # endpoint_address = 0x81
-        # direction = 'IN'
-
-        # self.dev.usb_dev.reset_endpoint(endpoint_address, direction)
-        # self.dev.usb_dev.clear_halt(endpoint_address)
-
-        #set lat timer
         self.dev.ftdi_fn.ftdi_set_latency_timer(16)
-        self.dev.read(64)
-
-        # await self.getModemStat()
-
         self.dev.ftdi_fn.ftdi_set_line_property(8, 1, 0) # 8 bit size, 1 stop bit, no parity
-        self.dev.ftdi_fn.ftdi_setdtr(True)
-
-        self.dev.ftdi_fn.ftdi_setrts(True)
-
         self.dev.ftdi_fn.ftdi_setflowctrl(0)
         self.dev.baudrate = 19200
-
-        self.dev.ftdi_fn.ftdi_setrts(True)
-        self.dev.ftdi_fn.ftdi_setdtr(True)
-
-        self.dev.ftdi_fn.ftdi_set_line_property(8, 1, 0) # 8 bit size, 1 stop bit, no parity
-        self.dev.ftdi_fn.ftdi_setflowctrl(0)
 
     async def secondInit(self):
         self.dev.baudrate = 19200
-
-        self.dev.ftdi_fn.ftdi_setrts(True)
-        self.dev.ftdi_fn.ftdi_setdtr(True)
-
         self.dev.ftdi_fn.ftdi_set_line_property(8, 1, 0) # 8 bit size, 1 stop bit, no parity
         self.dev.ftdi_fn.ftdi_setflowctrl(0)
 
     async def initialize(self):
+        self.dev.write("\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
         for i in range(33):
             packet = b"\xaa"  # First byte is constant
             packet += bytes([i & 0xFF])  # Second byte increments
@@ -173,10 +134,55 @@ class AgilentCentrifuge(CentrifugeBackend):
 
         packet = b""
         packet += b"\xaa\xff\x0f\x0e"
-        check = await self.send(packet)
-        if check == 0x89:
-            print("Initialization succesful")
+        await self.send(packet)
 
     async def sendsix(self):
         await self.send(b"\xaa\x00\x21\x01\xff\x21")
+        await self.send(b"\xaa\x01\x13\x20\x34")
+        await self.send(b"\xaa\x00\x21\x02\xff\x22")
+        await self.send(b"\xaa\x02\x13\x20\x35")
+        await self.send(b"\xaa\x00\x21\x03\xff\x23") # expects NA
+        await self.send(b"\xaa\xff\x1a\x14\x2d") # expects NA
+
+    async def finishSetup(self):
+        await self.send(b"\xaa\x01\x12\x1f\x32")
+        for i in range(8):
+            await self.send(b"\xaa\x02\x20\xff\x0f\x30")
+        await self.send(b"\xaa\x02\x20\xdf\x0f\x10")
+        await self.send(b"\xaa\x02\x20\xdf\x0e\x0f")
+        await self.send(b"\xaa\x02\x20\xdf\x0c\x0d")
+        await self.send(b"\xaa\x02\x20\xdf\x08\x09")
+        for i in range(4):
+            await self.send(b"\xaa\x02\x26\x00\x00\x28")
+        await self.send(b"\xaa\x02\x12\x03\x17")
+        for i in range(5):
+            await self.send(b"\xaa\x02\x26\x20\x00\x48")
+            await self.send(b"\xaa\x02\x0e\x10")
+            await self.send(b"\xaa\x02\x26\x00\x00\x28")
+            await self.send(b"\xaa\x02\x0e\x10")
+        await self.send(b"\xaa\x02\x0e\x10")
+        await self.send(b"\xaa\x02\x26\x00\x01\x29")
+        await self.send(b"\xaa\x02\x0e\x10")
+
+    async def afterSix(self):
+        # not part of the status check: ftdi control
+        self.dev.baudrate = 57700
+        self.dev.ftdi_fn.ftdi_setrts(1)
+        self.dev.ftdi_fn.ftdi_setdtr(1)
+        # self.dev.ftdi_fn.set_dataline
+
+        #asfasfd
+
+        await self.send(b"\xaa\x01\x0e\x0f") # expects 0909
+        await self.send(b"\xaa\x02\x0e\x10") # expects 0000
+
+    async def openDoor(self):
+        await self.send(b"\xaa\x02\x26\x00\x07\x2f")
+        await self.send(b"\xaa\x02\x0e\x10")
+
+    async def closeDoor(self):
+        await self.send(b"\xaa\x02\x26\x00\x05\x2d")
+        await self.send(b"\xaa\x02\x0e\x10")
+
+
 
