@@ -184,5 +184,13 @@ class AgilentCentrifuge(CentrifugeBackend):
         await self.send(b"\xaa\x02\x26\x00\x05\x2d")
         await self.send(b"\xaa\x02\x0e\x10")
 
+    async def lockDoor(self): # lockDoor is overrided by openDoor
+        await self.send(b"\xaa\x02\x26\x00\x01\x29")
+        await self.send(b"\xaa\x02\x0e\x10")
+
+    async def unlockDoor(self):
+        await self.send(b"\xaa\x02\x26\x00\x05\x2d")
+        await self.send(b"\xaa\x02\x0e\x10")
+
 
 
