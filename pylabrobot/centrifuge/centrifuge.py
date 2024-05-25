@@ -6,7 +6,6 @@ import asyncio
 from .backend import CentrifugeBackend
 from pylabrobot import utils # might need to uses plates as resources
 
-
 try:
   from pylibftdi import Device
   USE_FTDI = True
@@ -25,30 +24,27 @@ class AgilentCentrifuge(CentrifugeBackend):
 
     async def setup(self):
         if not USE_FTDI:
-            raise RuntimeError("to do")
+            raise RuntimeError("pylibftdi is not installed.")
 
         self.dev = Device()
         self.dev.open()
         print(self.dev, "open")
 
-        await self.firstInit()
-        await self.initialize()
-        await self.secondInit()
-        await self.initialize()
-        await self.secondInit()
-        await self.sendsix()
-        await self.afterSix()
+        for i in range(2):
+            await self.setConfigurationData()
+            await self.initialize()
+        await self.setConfigurationData()
         await self.finishSetup()
 
     async def stop(self):
         await self.send(b"\xaa\x02\x0e\x10")
         await self.initialize()
-        await self.secondInit()
+        await self.setConfigurationData()
         if self.dev is not None:
             self.dev.close()
 
     async def read_resp(self, timeout=20) -> bytes:
-        """ Read a response from the plate reader. If the timeout is reached, return the data that has
+        """ Read a response from the centrifuge. If the timeout is reached, return the data that has
     been read so far. """
 
         if self.dev is None:
@@ -58,11 +54,7 @@ class AgilentCentrifuge(CentrifugeBackend):
         last_read = b""
         end_byte_found = False
         t = time.time()
-
-    # Commands are terminated with 0x0d, but this value may also occur as a part of the response.
-    # Therefore, we read until we read a 0x0d, but if that's the last byte we read in a full packet,
-    # we keep reading for at least one more cycle. We only check the timeout if the last read was
-    # unsuccessful (i.e. keep reading if we are still getting data).
+        
         while True:
             last_read = self.dev.read(25) # 25 is max length observed in pcap
             if len(last_read) > 0:
@@ -107,20 +99,11 @@ class AgilentCentrifuge(CentrifugeBackend):
         print(resp)
         return resp
 
-    async def read_command_status(self): # TODO: fix after fixing send()
-        status = await self.send(bytearray([0xaa, 0x01, 0x0e, 0x0f]))
-        return status
-
-    async def firstInit(self):
+    async def setConfigurationData(self): #TODO: see if firstconfiguration and second confirguration 
         self.dev.ftdi_fn.ftdi_set_latency_timer(16)
         self.dev.ftdi_fn.ftdi_set_line_property(8, 1, 0) # 8 bit size, 1 stop bit, no parity
         self.dev.ftdi_fn.ftdi_setflowctrl(0)
         self.dev.baudrate = 19200
-
-    async def secondInit(self):
-        self.dev.baudrate = 19200
-        self.dev.ftdi_fn.ftdi_set_line_property(8, 1, 0) # 8 bit size, 1 stop bit, no parity
-        self.dev.ftdi_fn.ftdi_setflowctrl(0)
 
     async def initialize(self):
         self.dev.write("\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
@@ -136,7 +119,7 @@ class AgilentCentrifuge(CentrifugeBackend):
         packet += b"\xaa\xff\x0f\x0e"
         await self.send(packet)
 
-    async def sendsix(self):
+    async def finishSetup(self):
         await self.send(b"\xaa\x00\x21\x01\xff\x21")
         await self.send(b"\xaa\x01\x13\x20\x34")
         await self.send(b"\xaa\x00\x21\x02\xff\x22")
@@ -144,7 +127,14 @@ class AgilentCentrifuge(CentrifugeBackend):
         await self.send(b"\xaa\x00\x21\x03\xff\x23") # expects NA
         await self.send(b"\xaa\xff\x1a\x14\x2d") # expects NA
 
-    async def finishSetup(self):
+        # not part of the status check: ftdi control
+        self.dev.baudrate = 57700
+        self.dev.ftdi_fn.ftdi_setrts(1)
+        self.dev.ftdi_fn.ftdi_setdtr(1)
+
+        await self.send(b"\xaa\x01\x0e\x0f") # expects 0909
+        await self.send(b"\xaa\x02\x0e\x10") # expects 0000
+
         await self.send(b"\xaa\x01\x12\x1f\x32")
         for i in range(8):
             await self.send(b"\xaa\x02\x20\xff\x0f\x30")
@@ -163,18 +153,6 @@ class AgilentCentrifuge(CentrifugeBackend):
         await self.send(b"\xaa\x02\x0e\x10")
         await self.send(b"\xaa\x02\x26\x00\x01\x29")
         await self.send(b"\xaa\x02\x0e\x10")
-
-    async def afterSix(self):
-        # not part of the status check: ftdi control
-        self.dev.baudrate = 57700
-        self.dev.ftdi_fn.ftdi_setrts(1)
-        self.dev.ftdi_fn.ftdi_setdtr(1)
-        # self.dev.ftdi_fn.set_dataline
-
-        #asfasfd
-
-        await self.send(b"\xaa\x01\x0e\x0f") # expects 0909
-        await self.send(b"\xaa\x02\x0e\x10") # expects 0000
 
     async def openDoor(self):
         await self.send(b"\xaa\x02\x26\x00\x07\x2f")
