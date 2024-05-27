@@ -12,25 +12,25 @@ class CentrifugeBackend(MachineBackend, metaclass=ABCMeta):
     async def setup(self) -> None:
         """ Set up the centrifuge. This should be called before any other methods. """
 
-    # @abstractmethod
-    # async def stop(self) -> None:
-    #     """Close all connections to the centrifuge. """
+    @abstractmethod
+    async def stop(self) -> None:
+        """Close all connections to the centrifuge. """
         
-    # @abstractmethod
-    # async def open(self) -> None:
-    #     """ Open the centrifuge door. Also known as open door. """
+    @abstractmethod
+    async def open_door(self) -> None:
+        """ Open the centrifuge door. Also known as open door. """
 
-    # @abstractmethod
-    # async def close(self) -> None:
-    #     """ Close the centrifuge door. Also known as close door. """
+    @abstractmethod
+    async def close_door(self) -> None:
+        """ Close the centrifuge door. Also known as close door. """
         
-    # @abstractmethod
-    # async def lock(self) -> None:
-    #     """ Lock the centrifuge door. Also known as lock door. """
+    @abstractmethod
+    async def lock_door(self) -> None:
+        """ Lock the centrifuge door. Also known as lock door. """
 
-    # @abstractmethod
-    # async def unlock(self) -> None:
-    #     """ Unlock the centrifuge door. Also known as unlock door. """
+    @abstractmethod
+    async def unlock_door(self) -> None:
+        """ Unlock the centrifuge door. Also known as unlock door. """
     
     # @abstractmethod
     # async def bucket1(self) -> None:
