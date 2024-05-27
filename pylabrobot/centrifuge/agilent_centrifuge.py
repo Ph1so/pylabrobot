@@ -43,7 +43,7 @@ class AgilentCentrifuge(CentrifugeBackend):
         await self.unlock_door()
 
     async def stop(self):
-        await self.send(b"\xaa\x02\x0e\x10")
+        await self.com()
         await self._configure_and_initialize()
         if self.dev:
             self.dev.close()
@@ -108,6 +108,10 @@ class AgilentCentrifuge(CentrifugeBackend):
             self.dev.write(packet)
         await self.send(b"\xaa\xff\x0f\x0e")
 
+    async def com(self):
+        """start/end command, i think..."""
+        await self.send(b"\xaa\x02\x0e\x10")
+
     async def finish_setup(self):
         """Finish the setup process."""
         await self.send(b"\xaa\x00\x21\x01\xff\x21")
@@ -122,7 +126,7 @@ class AgilentCentrifuge(CentrifugeBackend):
         self.dev.ftdi_fn.ftdi_setdtr(1)
 
         await self.send(b"\xaa\x01\x0e\x0f")
-        await self.send(b"\xaa\x02\x0e\x10")
+        await self.com()
         await self.send(b"\xaa\x01\x12\x1f\x32")
         for _ in range(8):
             await self.send(b"\xaa\x02\x20\xff\x0f\x30")
@@ -135,12 +139,18 @@ class AgilentCentrifuge(CentrifugeBackend):
         await self.send(b"\xaa\x02\x12\x03\x17")
         for _ in range(5):
             await self.send(b"\xaa\x02\x26\x20\x00\x48")
-            await self.send(b"\xaa\x02\x0e\x10")
+            await self.com()
             await self.send(b"\xaa\x02\x26\x00\x00\x28")
-            await self.send(b"\xaa\x02\x0e\x10")
-        await self.send(b"\xaa\x02\x0e\x10")
+            await self.com()
+        await self.com()
         await self.send(b"\xaa\x02\x26\x00\x01\x29")
-        await self.send(b"\xaa\x02\x0e\x10")
+        await self.com()
+
+    async def status_check(self):
+        """Check the status of the centrifuge."""
+        resp = await self.send(b"\xaa\x01\x0e\x0f")
+        await self.com()
+        return resp
 
     async def open_door(self):
         if await self.is_locked():
@@ -150,7 +160,7 @@ class AgilentCentrifuge(CentrifugeBackend):
         
         try:
             await self.send(b"\xaa\x02\x26\x00\x07\x2f")
-            await self.send(b"\xaa\x02\x0e\x10")
+            await self.com()
             self.door_status = True
         except Exception as e:
             logger.error(f"Failed to send command to open door: {e}")
@@ -164,7 +174,7 @@ class AgilentCentrifuge(CentrifugeBackend):
         
         try:
             await self.send(b"\xaa\x02\x26\x00\x05\x2d")
-            await self.send(b"\xaa\x02\x0e\x10")
+            await self.com()
             self.door_status = False
         except Exception as e:
             logger.error(f"Failed to send command to close door: {e}")
@@ -175,13 +185,71 @@ class AgilentCentrifuge(CentrifugeBackend):
 
     async def lock_door(self):
         await self.send(b"\xaa\x02\x26\x00\x01\x29")
-        await self.send(b"\xaa\x02\x0e\x10")
+        await self.com()
         self.lock_status = True
 
     async def unlock_door(self):
         await self.send(b"\xaa\x02\x26\x00\x05\x2d")
-        await self.send(b"\xaa\x02\x0e\x10")
+        await self.com()
         self.lock_status = False
 
     async def is_locked(self) -> bool:
         return self.lock_status
+
+    async def start_spin_cycle(self, plate, rpm, time_seconds, acceleration, deceleration):
+        """Start a spin cycle."""
+        await self.com()
+        await self.send(b"\xaa\x02\x26\x00\x05\x2d")
+        await self.com()
+        await self.send(b"\xaa\x01\x0e\x0f")
+        await self.com()
+
+        await self.status_check()
+
+        await self.com()
+        await self.send(b"\xaa\x02\x26\x00\x01\x29")
+        await self.com()
+        await self.send(b"\xaa\x01\x0e\x0f")
+        await self.com()
+
+        await self.status_check()
+
+        await self.com()
+        await self.com()
+        await self.send(b"\xaa\x02\x26\x00\x00\x28")
+        await self.com()
+        await self.send(b"\xaa\x01\x0e\x0f")
+        await self.com()
+
+        await self.status_check()
+
+        await self.send(b"\xaa\x01\x0e\x0f")
+        await self.com()
+        await self.send(b"\xaa\x01\x17\x02\x1a")
+        await self.send(b"\xaa\x01\x0e\x0f")
+        await self.send(b"\xaa\x01\xe6\xc8\x00\xb0\x04\x96\x00\x0f\x00\x4b\x00\xa0\x0f\x05\x00\x07")
+        await self.send(b"\xaa\x01\x17\x04\x1c")
+        await self.send(b"\xaa\x01\x17\x01\x19")
+
+        await self.status_check()
+
+        await self.send(b"\xaa\x01\x0b\x0c")
+        await self.send(b"\xaa\x01\x0e\x0f")
+        await self.send(b"\xaa\x01\xe6\x05\x00\x64\x00\x00\x00\x00\x00\xfd\x00\x80\x3e\x01\x00\x0c")
+        await self.send(b"\xaa\x01\xd4\x97\xe9\x36\x3c\x00\x67\x66\x66\x00\xdc\x02\x00\x00\xd8")
+        for _ in range(4):
+            await self.send(b"\xaa\x01\x0e\x0f")
+        await self.com()
+
+        # await self.send(b"\xaa\x01\x0e\x0f")
+        # await self.send(b"\xaa\x01\x0e\x0f")
+
+        # resp = await self.status_check()
+        # print(resp)
+        # while len(resp) != 14:
+        #     print('position tracking')
+        #     await self.send(b"\xaa\x01\x0e\x0f")
+        #     await self.send(b"\xaa\x01\x0e\x0f")
+
+        #     resp = await self.status_check()
+

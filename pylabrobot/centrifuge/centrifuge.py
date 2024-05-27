@@ -42,3 +42,19 @@ class Centrifuge(Machine):
   async def unlock_door(self) -> None:
     await self.backend.unlock_door()
 
+  async def start_spin_cycle(
+    self,
+    plate: Optional[Plate] = None,
+    rpm: Optional[float] = None,
+    time_seconds: Optional[float] = None,
+    acceleration: Optional[float] = None,
+    deceleration: Optional[float] = None,
+  ) -> None:
+    await self.backend.start_spin_cycle(
+      plate=plate,
+      rpm=rpm,
+      time_seconds=time_seconds,
+      acceleration=acceleration,
+      deceleration=deceleration,
+    )
+

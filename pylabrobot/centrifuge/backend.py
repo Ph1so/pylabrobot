@@ -48,6 +48,6 @@ class CentrifugeBackend(MachineBackend, metaclass=ABCMeta):
     # async def unlock_bucket(self) -> None:
     #     """ Unlocks buckets so they can move freely. Also known as go to unlock bucket. """
         
-    # @abstractmethod
-    # async def start_spin_cycle(self) -> None: # TODO: add parameters for settings
-    #     """ Takes user settings and starts spinning buckets. Also known as start spin cycle. """
+    @abstractmethod
+    async def start_spin_cycle(self, plate, rpm, time_seconds, acceleration, deceleration, te) -> None: # TODO: add parameters for settings
+        """ Takes user settings and starts spinning buckets. Also known as start spin cycle. """
