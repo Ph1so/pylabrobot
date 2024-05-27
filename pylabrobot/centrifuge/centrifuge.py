@@ -47,6 +47,9 @@ class Centrifuge(Machine):
   
   async def lock_bucket(self) -> None:
     await self.backend.lock_bucket()
+  
+  async def go_to_bucket2(self) -> None:
+    await self.backend.go_to_bucket2()
 
   async def start_spin_cycle(
     self,

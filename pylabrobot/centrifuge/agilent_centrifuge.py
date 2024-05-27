@@ -204,6 +204,37 @@ class AgilentCentrifuge(CentrifugeBackend):
         await self.send(b"\xaa\x02\x26\x00\x06\x2e")
         await self.com()
 
+    async def go_to_bucket2(self):
+        await self.com()
+        await self.send(b"\xaa\x02\x26\x00\x05\x2d")
+        await self.com()
+
+        await self.status_check()
+
+        await self.com()
+        await self.send(b"\xaa\x02\x26\x00\x01\x29")
+        await self.com()
+        await self.send(b"\xaa\x01\x0e\x0f")
+        await self.com()
+
+        await self.com()
+        await self.com()
+        await self.send(b"\xaa\x02\x26\x00\x00\x28")
+        await self.com()
+        await self.send(b"\xaa\x01\x0e\x0f")
+        await self.com()
+
+        await self.com()
+        await self.status_check()
+        await self.com()
+        await self.status_check()
+
+        await self.send(b"\xaa\x01\x17\x02\x1a")
+        await self.send(b"\xaa\x01\x0e\x0f")
+        await self.send(b"\xaa\x01\xe6\xc8\x00\xb0\x04\x96\x00\x0f\x00\x4b\x00\xa0\x0f\x05\x00\x07")
+        await self.send(b"\xaa\x01\x17\x04\x1c")
+        await self.send(b"\xaa\x01\x17\x01\x19")
+
     async def start_spin_cycle(self, plate, rpm, time_seconds, acceleration, deceleration):
         """Start a spin cycle."""
         await self.com()

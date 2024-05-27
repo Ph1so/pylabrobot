@@ -36,9 +36,9 @@ class CentrifugeBackend(MachineBackend, metaclass=ABCMeta):
     # async def bucket1(self) -> None:
     #     """ Goes to bucket1. Also known as go to bucket 1. """
 
-    # @abstractmethod
-    # async def bucket2(self) -> None:
-    #     """ Goes to bucket2. Also known as go to bucket 2. """
+    @abstractmethod
+    async def go_to_bucket2(self) -> None:
+        """ Goes to bucket2. Also known as go to bucket 2. """
         
     @abstractmethod
     async def lock_bucket(self) -> None:
