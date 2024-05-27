@@ -195,6 +195,14 @@ class AgilentCentrifuge(CentrifugeBackend):
 
     async def is_locked(self) -> bool:
         return self.lock_status
+    
+    async def lock_bucket(self):
+        await self.send(b"\xaa\x02\x26\x00\x07\x2f")
+        await self.com()
+    
+    async def unlock_bucket(self):
+        await self.send(b"\xaa\x02\x26\x00\x06\x2e")
+        await self.com()
 
     async def start_spin_cycle(self, plate, rpm, time_seconds, acceleration, deceleration):
         """Start a spin cycle."""
