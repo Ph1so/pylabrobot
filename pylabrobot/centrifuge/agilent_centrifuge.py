@@ -25,20 +25,18 @@ class AgilentCentrifuge(CentrifugeBackend):
     def __init__(self):
         self.dev: Optional[Device] = None
         self.door_status = False  # starts off closed
-        self.lock_status = True   # starts off unlocked
+        self.lock_status = True   # starts off locked
 
     async def setup(self):
         if not USE_FTDI:
             raise RuntimeError("pylibftdi is not installed.")
-
         self.dev = Device()
         self.dev.open()
         print(self.dev, "open")
 
-        for _ in range(2):
+        for _ in range(3):
             await self._configure_and_initialize()
 
-        await self._configure_and_initialize()
         await self.finish_setup()
         await self.unlock_door()
 
@@ -109,7 +107,7 @@ class AgilentCentrifuge(CentrifugeBackend):
         await self.send(b"\xaa\xff\x0f\x0e")
 
     async def com(self):
-        """start/end command, i think..."""
+        """Start/end command."""
         await self.send(b"\xaa\x02\x0e\x10")
 
     async def finish_setup(self):
