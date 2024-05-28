@@ -15,6 +15,7 @@ import warnings
 from pylabrobot.machines.machine import Machine, need_setup_finished
 from pylabrobot.liquid_handling.strictness import Strictness, get_strictness
 from pylabrobot.liquid_handling.errors import ChannelizedError
+from pylabrobot.resources.errors import HasTipError
 from pylabrobot.plate_reading import PlateReader
 from pylabrobot.resources import (
   Container,
@@ -765,7 +766,7 @@ class LiquidHandler(Machine):
       if does_volume_tracking():
         if not op.resource.tracker.is_disabled:
           (op.resource.tracker.commit if success else op.resource.tracker.rollback)()
-        (self.head[channel].commit if success else self.head[channel].rollback)()
+        (self.head[channel].get_tip().tracker.commit if success else self.head[channel].rollback)()
 
     # trigger callback
     self._trigger_callback(
@@ -932,7 +933,7 @@ class LiquidHandler(Machine):
       error = e
 
     # determine which channels were successful
-    successes = [error is not None] * len(dispenses)
+    successes = [error is None] * len(dispenses)
     if error is not None and isinstance(error, ChannelizedError):
       successes = [channel_idx not in error.errors for channel_idx in use_channels]
 
@@ -941,11 +942,11 @@ class LiquidHandler(Machine):
       if does_volume_tracking():
         if not op.resource.tracker.is_disabled:
           (op.resource.tracker.commit if success else op.resource.tracker.rollback)()
-        (self.head[channel].commit if success else self.head[channel].rollback)()
+        (self.head[channel].get_tip().tracker.commit if success else self.head[channel].rollback)()
 
     # trigger callback
     self._trigger_callback(
-      "aspirate",
+      "dispense",
       liquid_handler=self,
       operations=dispenses,
       use_channels=use_channels,
@@ -1731,19 +1732,6 @@ class LiquidHandler(Machine):
     else:
       to.assign_child_resource(plate, location=to_location)
 
-  def serialize(self) -> dict:
-    """ Serialize the liquid handler to a dictionary.
-
-    Returns:
-      A dictionary representation of the liquid handler.
-    """
-
-    return {
-      # "children": self.deck.serialize(),
-      **super().serialize(),
-      "backend": self.backend.serialize()
-    }
-
   def register_callback(self, method_name: str, callback: OperationCallback):
     """Registers a callback for a specific method."""
     if method_name in self._callbacks:
@@ -1776,11 +1764,10 @@ class LiquidHandler(Machine):
       data: A dictionary representation of the liquid handler.
     """
 
-    backend_data = data.pop("backend")
-    backend = LiquidHandlerBackend.deserialize(backend_data)
     deck_data = data["children"][0]
     deck = Deck.deserialize(data=deck_data)
-    return LiquidHandler(deck=deck, backend=backend)
+    backend = LiquidHandlerBackend.deserialize(data=data["backend"])
+    return cls(deck=deck, backend=backend)
 
   @classmethod
   def load(cls, path: str) -> LiquidHandler:

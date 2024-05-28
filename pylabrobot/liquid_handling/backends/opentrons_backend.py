@@ -23,7 +23,6 @@ from pylabrobot.resources import (
   TipSpot
 )
 from pylabrobot.resources.opentrons import OTDeck, OTModule
-from pylabrobot.temperature_controlling import OpentronsTemperatureModuleV2
 from pylabrobot import utils
 
 PYTHON_VERSION = sys.version_info[:2]
@@ -73,6 +72,7 @@ class OpentronsBackend(LiquidHandlerBackend):
     self.host = host
     self.port = port
 
+    # pylint: disable=possibly-used-before-assignment
     ot_api.set_host(host)
     ot_api.set_port(port)
 
@@ -89,6 +89,8 @@ class OpentronsBackend(LiquidHandlerBackend):
     }
 
   async def setup(self):
+    # pylint: disable=possibly-used-before-assignment
+
     # create run
     run_id = ot_api.runs.create()
     ot_api.set_run(run_id)
@@ -114,7 +116,7 @@ class OpentronsBackend(LiquidHandlerBackend):
     another resource, such as plates on a temperature controller, and we need to find the slot of
     the parent resource (site). """
 
-    if isinstance(resource.parent, OpentronsTemperatureModuleV2):
+    if isinstance(resource.parent, OTModule):
       return self.defined_labware[resource.parent.name]
 
     slot = None
@@ -149,9 +151,10 @@ class OpentronsBackend(LiquidHandlerBackend):
     # check if resource is actually a Module
     if isinstance(resource, OTModule):
       assert isinstance(ot_location, int)
+      # pylint: disable=possibly-used-before-assignment
       ot_api.modules.load_module(
         slot=ot_location,
-        model="temperatureModuleV2",
+        model=resource.model,
         module_id=resource.backend.opentrons_id # type: ignore
       )
 
