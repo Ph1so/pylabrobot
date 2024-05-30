@@ -24,25 +24,24 @@ class AgilentCentrifuge(CentrifugeBackend):
 
     def __init__(self):
         self.dev: Optional[Device] = None
-        self.door_status = False  # starts off closed
-        self.lock_status = True   # starts off locked
+        self.door_status = False  # starts off closed - opened = True 
+        self.lock_status = False   # starts off unlocked - locked = True
 
     async def setup(self):
         if not USE_FTDI:
             raise RuntimeError("pylibftdi is not installed.")
+        
         self.dev = Device()
         self.dev.open()
         print(self.dev, "open")
 
-        for _ in range(3):
-            await self._configure_and_initialize()
-
+        await self.configure_and_initialize()
         await self.finish_setup()
         await self.unlock_door()
 
     async def stop(self):
         await self.com()
-        await self._configure_and_initialize()
+        await self.configure_and_initialize()
         if self.dev:
             self.dev.close()
 
@@ -83,23 +82,22 @@ class AgilentCentrifuge(CentrifugeBackend):
 
         if written != len(cmd):
             raise RuntimeError("Failed to write all bytes")
-        resp = await self.read_resp(timeout=read_timeout)
-        print(resp)
-        return resp
+        # resp = await self.read_resp(timeout=read_timeout)
+        # print(resp)
+        # return resp
+        return await self.read_resp(timeout=read_timeout)
 
-    async def _configure_and_initialize(self):
+    async def configure_and_initialize(self):
         await self.set_configuration_data()
         await self.initialize()
 
     async def set_configuration_data(self):
-        """Set the device configuration data."""
         self.dev.ftdi_fn.ftdi_set_latency_timer(16)
         self.dev.ftdi_fn.ftdi_set_line_property(8, 1, 0)
         self.dev.ftdi_fn.ftdi_setflowctrl(0)
         self.dev.baudrate = 19200
 
     async def initialize(self):
-        """Initialize the device."""
         self.dev.write(b"\x00" * 20)
         for i in range(33):
             packet = b"\xaa" + bytes([i & 0xFF, 0x0e, 0x0e + (i & 0xFF)]) + b"\x00" * 8
@@ -107,11 +105,10 @@ class AgilentCentrifuge(CentrifugeBackend):
         await self.send(b"\xaa\xff\x0f\x0e")
 
     async def com(self):
-        """Start/end command."""
+        """start/end command, i think..."""
         await self.send(b"\xaa\x02\x0e\x10")
 
     async def finish_setup(self):
-        """Finish the setup process."""
         await self.send(b"\xaa\x00\x21\x01\xff\x21")
         await self.send(b"\xaa\x01\x13\x20\x34")
         await self.send(b"\xaa\x00\x21\x02\xff\x22")
@@ -123,8 +120,7 @@ class AgilentCentrifuge(CentrifugeBackend):
         self.dev.ftdi_fn.ftdi_setrts(1)
         self.dev.ftdi_fn.ftdi_setdtr(1)
 
-        await self.send(b"\xaa\x01\x0e\x0f")
-        await self.com()
+        await self.status_check()
         await self.send(b"\xaa\x01\x12\x1f\x32")
         for _ in range(8):
             await self.send(b"\xaa\x02\x20\xff\x0f\x30")
@@ -141,19 +137,17 @@ class AgilentCentrifuge(CentrifugeBackend):
             await self.send(b"\xaa\x02\x26\x00\x00\x28")
             await self.com()
         await self.com()
-        await self.send(b"\xaa\x02\x26\x00\x01\x29")
-        await self.com()
+        await self.lock_door()
 
     async def status_check(self):
-        """Check the status of the centrifuge."""
         resp = await self.send(b"\xaa\x01\x0e\x0f")
         await self.com()
         return resp
 
     async def open_door(self):
-        if await self.is_locked():
+        if self.lock_status:
             raise DoorOperationError("Door is locked")
-        if await self.is_open():
+        if self.door_status:
             raise DoorOperationError("Door is already opened")
         
         try:
@@ -165,9 +159,9 @@ class AgilentCentrifuge(CentrifugeBackend):
             raise
 
     async def close_door(self):
-        if await self.is_locked():
+        if self.lock_status:
             raise DoorOperationError("Door is locked")
-        if not await self.is_open():
+        if not self.door_status:
             raise DoorOperationError("Door is already closed")
         
         try:
@@ -178,9 +172,6 @@ class AgilentCentrifuge(CentrifugeBackend):
             logger.error(f"Failed to send command to close door: {e}")
             raise
 
-    async def is_open(self) -> bool:
-        return self.door_status
-
     async def lock_door(self):
         await self.send(b"\xaa\x02\x26\x00\x01\x29")
         await self.com()
@@ -190,9 +181,6 @@ class AgilentCentrifuge(CentrifugeBackend):
         await self.send(b"\xaa\x02\x26\x00\x05\x2d")
         await self.com()
         self.lock_status = False
-
-    async def is_locked(self) -> bool:
-        return self.lock_status
     
     async def lock_bucket(self):
         await self.send(b"\xaa\x02\x26\x00\x07\x2f")
@@ -204,23 +192,20 @@ class AgilentCentrifuge(CentrifugeBackend):
 
     async def go_to_bucket2(self):
         await self.com()
-        await self.send(b"\xaa\x02\x26\x00\x05\x2d")
-        await self.com()
-
+        if self.door_status:
+            await self.close_door()
         await self.status_check()
 
         await self.com()
-        await self.send(b"\xaa\x02\x26\x00\x01\x29")
-        await self.com()
-        await self.send(b"\xaa\x01\x0e\x0f")
-        await self.com()
+        if self.lock_status:
+            await self.lock_door()
+        await self.status_check()
 
         await self.com()
         await self.com()
         await self.send(b"\xaa\x02\x26\x00\x00\x28")
         await self.com()
-        await self.send(b"\xaa\x01\x0e\x0f")
-        await self.com()
+        await self.status_check()
 
         await self.com()
         await self.status_check()
@@ -236,32 +221,21 @@ class AgilentCentrifuge(CentrifugeBackend):
     async def start_spin_cycle(self, plate, rpm, time_seconds, acceleration, deceleration):
         """Start a spin cycle."""
         await self.com()
-        await self.send(b"\xaa\x02\x26\x00\x05\x2d")
-        await self.com()
-        await self.send(b"\xaa\x01\x0e\x0f")
-        await self.com()
-
+        if self.door_status:
+            await self.close_door()
         await self.status_check()
 
         await self.com()
-        await self.send(b"\xaa\x02\x26\x00\x01\x29")
-        await self.com()
-        await self.send(b"\xaa\x01\x0e\x0f")
-        await self.com()
-
+        if not self.lock_status:
+            await self.lock_door()
         await self.status_check()
 
         await self.com()
         await self.com()
         await self.send(b"\xaa\x02\x26\x00\x00\x28")
         await self.com()
-        await self.send(b"\xaa\x01\x0e\x0f")
-        await self.com()
-
         await self.status_check()
 
-        await self.send(b"\xaa\x01\x0e\x0f")
-        await self.com()
         await self.send(b"\xaa\x01\x17\x02\x1a")
         await self.send(b"\xaa\x01\x0e\x0f")
         await self.send(b"\xaa\x01\xe6\xc8\x00\xb0\x04\x96\x00\x0f\x00\x4b\x00\xa0\x0f\x05\x00\x07")
@@ -274,9 +248,9 @@ class AgilentCentrifuge(CentrifugeBackend):
         await self.send(b"\xaa\x01\x0e\x0f")
         await self.send(b"\xaa\x01\xe6\x05\x00\x64\x00\x00\x00\x00\x00\xfd\x00\x80\x3e\x01\x00\x0c")
         await self.send(b"\xaa\x01\xd4\x97\xe9\x36\x3c\x00\x67\x66\x66\x00\xdc\x02\x00\x00\xd8")
-        for _ in range(4):
-            await self.send(b"\xaa\x01\x0e\x0f")
-        await self.com()
+        while True:
+            resp = await self.status_check()
+            print(resp)
 
         # await self.send(b"\xaa\x01\x0e\x0f")
         # await self.send(b"\xaa\x01\x0e\x0f")
