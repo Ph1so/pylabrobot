@@ -30,7 +30,7 @@ class AgilentCentrifuge(CentrifugeBackend):
     async def setup(self):
         if not USE_FTDI:
             raise RuntimeError("pylibftdi is not installed.")
-        
+
         self.dev = Device()
         self.dev.open()
         print(self.dev, "open")
@@ -38,6 +38,7 @@ class AgilentCentrifuge(CentrifugeBackend):
         await self.configure_and_initialize()
         await self.finish_setup()
         await self.unlock_door()
+        await self.status_check()
 
     async def stop(self):
         await self.com()
@@ -82,22 +83,27 @@ class AgilentCentrifuge(CentrifugeBackend):
 
         if written != len(cmd):
             raise RuntimeError("Failed to write all bytes")
-        # resp = await self.read_resp(timeout=read_timeout)
-        # print(resp)
-        # return resp
-        return await self.read_resp(timeout=read_timeout)
+        resp = await self.read_resp(timeout=read_timeout)
+        s = ""
+        for i, byte in enumerate(resp):
+            s += f"{i}: {byte:02x} "  # Format byte as two-digit hexadecimal
+        print(s)
+        return resp
+        # return await self.read_resp(timeout=read_timeout)
 
     async def configure_and_initialize(self):
         await self.set_configuration_data()
         await self.initialize()
 
     async def set_configuration_data(self):
+        """Set the device configuration data."""
         self.dev.ftdi_fn.ftdi_set_latency_timer(16)
         self.dev.ftdi_fn.ftdi_set_line_property(8, 1, 0)
         self.dev.ftdi_fn.ftdi_setflowctrl(0)
         self.dev.baudrate = 19200
 
     async def initialize(self):
+        """Initialize the device."""
         self.dev.write(b"\x00" * 20)
         for i in range(33):
             packet = b"\xaa" + bytes([i & 0xFF, 0x0e, 0x0e + (i & 0xFF)]) + b"\x00" * 8
@@ -109,6 +115,7 @@ class AgilentCentrifuge(CentrifugeBackend):
         await self.send(b"\xaa\x02\x0e\x10")
 
     async def finish_setup(self):
+        """Finish the setup process."""
         await self.send(b"\xaa\x00\x21\x01\xff\x21")
         await self.send(b"\xaa\x01\x13\x20\x34")
         await self.send(b"\xaa\x00\x21\x02\xff\x22")
@@ -140,6 +147,7 @@ class AgilentCentrifuge(CentrifugeBackend):
         await self.lock_door()
 
     async def status_check(self):
+        """Check the status of the centrifuge."""
         resp = await self.send(b"\xaa\x01\x0e\x0f")
         await self.com()
         return resp
@@ -244,14 +252,12 @@ class AgilentCentrifuge(CentrifugeBackend):
 
         await self.status_check()
 
-        await self.send(b"\xaa\x01\x0b\x0c")
-        await self.send(b"\xaa\x01\x0e\x0f")
-        await self.send(b"\xaa\x01\xe6\x05\x00\x64\x00\x00\x00\x00\x00\xfd\x00\x80\x3e\x01\x00\x0c")
-        await self.send(b"\xaa\x01\xd4\x97\xe9\x36\x3c\x00\x67\x66\x66\x00\xdc\x02\x00\x00\xd8")
         while True:
-            resp = await self.status_check()
-            print(resp)
-
+            await self.status_check()
+            # s = ""
+            # for i, byte in enumerate(resp):
+            #     s += f"{i}: {byte:02x} "  # Format byte as two-digit hexadecimal
+            # print(s)
         # await self.send(b"\xaa\x01\x0e\x0f")
         # await self.send(b"\xaa\x01\x0e\x0f")
 
