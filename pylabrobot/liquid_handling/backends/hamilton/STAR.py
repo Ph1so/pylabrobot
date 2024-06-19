@@ -22,8 +22,10 @@ from pylabrobot.liquid_handling.standard import (
   DropTipRack,
   Aspiration,
   AspirationPlate,
+  AspirationContainer,
   Dispense,
   DispensePlate,
+  DispenseContainer,
   GripDirection,
   Move
 )
@@ -1079,7 +1081,6 @@ class STAR(HamiltonLiquidHandler):
       packet_read_timeout: timeout in seconds for reading a single packet.
       read_timeout: timeout in seconds for reading a full response.
       write_timeout: timeout in seconds for writing a command.
-      num_channels: the number of pipette channels present on the robot.
     """
 
     super().__init__(
@@ -1403,7 +1404,6 @@ class STAR(HamiltonLiquidHandler):
     use_channels: List[int],
     jet: Optional[List[bool]] = None,
     blow_out: Optional[List[bool]] = None,
-
     lld_search_height: Optional[List[int]] = None,
     clot_detection_height: Optional[List[int]] = None,
     pull_out_distance_transport_air: Optional[List[int]] = None,
@@ -1550,12 +1550,14 @@ class STAR(HamiltonLiquidHandler):
                     (op.offset.z if op.offset is not None else 0) for op in ops]
     liquid_surfaces_no_lld = [wb + (op.liquid_height or 1)
                               for wb, op in zip(well_bottoms, ops)]
-    lld_search_heights = [wb + op.resource.get_size_z() + \
-                            (2.7 if isinstance(op.resource, Well) else 5) #?
-                          for wb, op in zip(well_bottoms, ops)]
-
     aspiration_volumes = [int(op.volume * 10) for op in ops]
-    lld_search_height = [int(sh * 10) for sh in lld_search_heights]
+    if lld_search_height is None:
+      lld_search_height = [
+        int((wb + op.resource.get_size_z() + (2.7 if isinstance(op.resource, Well) else 5)) * 10) #?
+        for wb, op in zip(well_bottoms, ops)
+      ]
+    else:
+      lld_search_height = [int((wb + sh) * 10) for wb, sh in zip(well_bottoms, lld_search_height)]
     clot_detection_height = _fill_in_defaults(clot_detection_height,
       default=[int(hlc.aspiration_clot_retract_height*10) if hlc is not None else 0
               for hlc in hamilton_liquid_classes])
@@ -1676,6 +1678,7 @@ class STAR(HamiltonLiquidHandler):
     ops: List[Dispense],
     use_channels: List[int],
 
+    lld_search_height: Optional[List[int]] = None,
     dispensing_mode: Optional[List[int]] = None,
     pull_out_distance_transport_air: Optional[List[int]] = None,
     second_section_height: Optional[List[int]] = None,
@@ -1724,6 +1727,7 @@ class STAR(HamiltonLiquidHandler):
       ops: The dispense operations to perform.
       use_channels: The channels to use for the dispense operations.
       dispensing_mode: The dispensing mode to use for each operation.
+      lld_search_height: The height to start searching for the liquid level when using LLD.
       pull_out_distance_transport_air: The distance to pull out the tip for aspirating transport air
         if LLD is disabled.
       second_section_height: Unknown.
@@ -1805,9 +1809,13 @@ class STAR(HamiltonLiquidHandler):
     well_bottoms = [op.resource.get_absolute_location().z + \
                     (op.offset.z if op.offset is not None else 0) for op in ops]
     liquid_surfaces_no_lld = [ls + (op.liquid_height or 1) for ls, op in zip(well_bottoms, ops)]
-    lld_search_heights = [wb + op.resource.get_size_z() + \
-                            (2.7 if isinstance(op.resource, Well) else 5) #?
-                          for wb, op in zip(well_bottoms, ops)]
+    if lld_search_height is None:
+      lld_search_height = [
+        int((wb + op.resource.get_size_z() + (2.7 if isinstance(op.resource, Well) else 5)) * 10) #?
+        for wb, op in zip(well_bottoms, ops)
+      ]
+    else:
+      lld_search_height = [int((wb + sh) * 10) for wb, sh in zip(well_bottoms, lld_search_height)]
 
     dispensing_modes = dispensing_mode or \
       [_dispensing_mode_for_op(empty=empty[i], jet=jet[i], blow_out=blow_out[i])
@@ -1834,7 +1842,7 @@ class STAR(HamiltonLiquidHandler):
       default=[int(hlc.dispense_air_transport_volume*10) if hlc is not None else 0
       for hlc in hamilton_liquid_classes])
     blow_out_air_volumes = [int((op.blow_out_air_volume or
-                                (hlc.aspiration_blow_out_volume
+                                (hlc.dispense_blow_out_volume
                                   if hlc is not None else 0)*10))
                             for op, hlc in zip(ops, hamilton_liquid_classes)]
     lld_mode = _fill_in_defaults(lld_mode, [self.__class__.LLDMode.OFF]*n)
@@ -1865,7 +1873,7 @@ class STAR(HamiltonLiquidHandler):
 
         dispensing_mode=dispensing_modes,
         dispense_volumes=dispense_volumes,
-        lld_search_height=[int(sh*10) for sh in lld_search_heights],
+        lld_search_height=lld_search_height,
         liquid_surface_no_lld=[int(ls*10) for ls in liquid_surfaces_no_lld],
         pull_out_distance_transport_air=pull_out_distance_transport_air,
         second_section_height=second_section_height,
@@ -1962,7 +1970,7 @@ class STAR(HamiltonLiquidHandler):
 
   async def aspirate96(
     self,
-    aspiration: AspirationPlate,
+    aspiration: Union[AspirationPlate, AspirationContainer],
     jet: bool = False,
     blow_out: bool = False,
 
@@ -2045,8 +2053,12 @@ class STAR(HamiltonLiquidHandler):
     assert self.core96_head_installed, "96 head must be installed"
 
     # get the first well and tip as representatives
-    top_left_well = aspiration.wells[0]
-    position = top_left_well.get_absolute_location() + top_left_well.center() + aspiration.offset
+    if isinstance(aspiration, AspirationPlate):
+      top_left_well = aspiration.wells[0]
+      position = top_left_well.get_absolute_location() + top_left_well.center() + aspiration.offset
+    else:
+      position = aspiration.container.get_absolute_location(y="b") + aspiration.offset
+
     tip = aspiration.tips[0]
     maximum_immersion_depth = int(position.z*10)
 
@@ -2148,7 +2160,7 @@ class STAR(HamiltonLiquidHandler):
 
   async def dispense96(
     self,
-    dispense: DispensePlate,
+    dispense: Union[DispensePlate, DispenseContainer],
     jet: bool = False,
     empty: bool = False,
     blow_out: bool = False,
@@ -2226,8 +2238,11 @@ class STAR(HamiltonLiquidHandler):
     assert self.core96_head_installed, "96 head must be installed"
 
     # get the first well and tip as representatives
-    top_left_well = dispense.wells[0]
-    position = top_left_well.get_absolute_location() + top_left_well.center() + dispense.offset
+    if isinstance(dispense, DispensePlate):
+      top_left_well = dispense.wells[0]
+      position = top_left_well.get_absolute_location() + top_left_well.center() + dispense.offset
+    else:
+      position = dispense.container.get_absolute_location(y="b") + dispense.offset
     tip = dispense.tips[0]
     maximum_immersion_depth = int(position.z*10)
 

@@ -4,9 +4,16 @@
 
 from pylabrobot.resources.plate import Plate
 from pylabrobot.resources.well import Well, WellBottomType, CrossSectionType
-from pylabrobot.resources.itemized_resource import create_equally_spaced
+from pylabrobot.resources.utils import create_equally_spaced_2d
 
-from pylabrobot.resources.volume_functions import calculate_liquid_volume_container_1segment_round_fbottom
+from pylabrobot.resources.volume_functions import (
+  calculate_liquid_volume_container_1segment_round_fbottom,
+  calculate_liquid_volume_container_2segments_square_vbottom
+)
+from pylabrobot.resources.height_functions import (
+  calculate_liquid_height_container_1segment_round_fbottom,
+  calculate_liquid_height_in_container_2segments_square_vbottom,
+)
 
 
 def _compute_volume_from_height_Cos_1536_10ul(h: float) -> float:
@@ -28,7 +35,7 @@ def Cos_1536_10ul(name: str, with_lid: bool = False) -> Plate:
     with_lid=with_lid,
     model="Cos_1536_10ul",
     lid_height=10,
-    items=create_equally_spaced(Well,
+    items=create_equally_spaced_2d(Well,
       num_items_x=48,
       num_items_y=32,
       dx=9.675,
@@ -72,7 +79,7 @@ def Cos_384_DW(name: str, with_lid: bool = False) -> Plate:
     with_lid=with_lid,
     model="Cos_384_DW",
     lid_height=10,
-    items=create_equally_spaced(Well,
+    items=create_equally_spaced_2d(Well,
       num_items_x=24,
       num_items_y=16,
       dx=9.95,
@@ -114,7 +121,7 @@ def Cos_384_PCR(name: str, with_lid: bool = False) -> Plate:
     with_lid=with_lid,
     model="Cos_384_PCR",
     lid_height=10,
-    items=create_equally_spaced(Well,
+    items=create_equally_spaced_2d(Well,
       num_items_x=24,
       num_items_y=16,
       dx=10.1,
@@ -156,7 +163,7 @@ def Cos_384_Sq(name: str, with_lid: bool = False) -> Plate:
     with_lid=with_lid,
     model="Cos_384_Sq",
     lid_height=10,
-    items=create_equally_spaced(Well,
+    items=create_equally_spaced_2d(Well,
       num_items_x=24,
       num_items_y=16,
       dx=10.0,
@@ -200,7 +207,7 @@ def Cos_384_Sq_Rd(name: str, with_lid: bool = False) -> Plate:
     with_lid=with_lid,
     model="Cos_384_Sq_Rd",
     lid_height=10,
-    items=create_equally_spaced(Well,
+    items=create_equally_spaced_2d(Well,
       num_items_x=24,
       num_items_y=16,
       dx=9.95,
@@ -244,7 +251,7 @@ def Cos_96_DW_1mL(name: str, with_lid: bool = False) -> Plate:
     with_lid=with_lid,
     model="Cos_96_DW_1mL",
     lid_height=10,
-    items=create_equally_spaced(Well,
+    items=create_equally_spaced_2d(Well,
       num_items_x=12,
       num_items_y=8,
       dx=10.75,
@@ -288,7 +295,7 @@ def Cos_96_DW_2mL(name: str, with_lid: bool = False) -> Plate:
     with_lid=with_lid,
     model="Cos_96_DW_2mL",
     lid_height=10,
-    items=create_equally_spaced(Well,
+    items=create_equally_spaced_2d(Well,
       num_items_x=12,
       num_items_y=8,
       dx=10.0,
@@ -332,7 +339,7 @@ def Cos_96_DW_500ul(name: str, with_lid: bool = False) -> Plate:
     with_lid=with_lid,
     model="Cos_96_DW_500ul",
     lid_height=10,
-    items=create_equally_spaced(Well,
+    items=create_equally_spaced_2d(Well,
       num_items_x=12,
       num_items_y=8,
       dx=10.55,
@@ -374,7 +381,7 @@ def Cos_96_EZWash(name: str, with_lid: bool = False) -> Plate:
     with_lid=with_lid,
     model="Cos_96_EZWash",
     lid_height=10,
-    items=create_equally_spaced(Well,
+    items=create_equally_spaced_2d(Well,
       num_items_x=12,
       num_items_y=8,
       dx=10.55,
@@ -416,7 +423,7 @@ def Cos_96_FL(name: str, with_lid: bool = False) -> Plate:
     with_lid=with_lid,
     model="Cos_96_FL",
     lid_height=10,
-    items=create_equally_spaced(Well,
+    items=create_equally_spaced_2d(Well,
       num_items_x=12,
       num_items_y=8,
       dx=10.57,
@@ -450,7 +457,7 @@ def Cos_96_Filter(name: str, with_lid: bool = False) -> Plate:
     with_lid=with_lid,
     model="Cos_96_Filter",
     lid_height=10,
-    items=create_equally_spaced(Well,
+    items=create_equally_spaced_2d(Well,
       num_items_x=12,
       num_items_y=8,
       dx=10.55,
@@ -493,7 +500,7 @@ def Cos_96_HalfArea(name: str, with_lid: bool = False) -> Plate:
     with_lid=with_lid,
     model="Cos_96_HalfArea",
     lid_height=10,
-    items=create_equally_spaced(Well,
+    items=create_equally_spaced_2d(Well,
       num_items_x=12,
       num_items_y=8,
       dx=11.5,
@@ -537,7 +544,7 @@ def Cos_96_PCR(name: str, with_lid: bool = False) -> Plate:
     with_lid=with_lid,
     model="Cos_96_PCR",
     lid_height=10,
-    items=create_equally_spaced(Well,
+    items=create_equally_spaced_2d(Well,
       num_items_x=12,
       num_items_y=8,
       dx=11.0,
@@ -579,7 +586,7 @@ def Cos_96_ProtCryst(name: str, with_lid: bool = False) -> Plate:
     with_lid=with_lid,
     model="Cos_96_ProtCryst",
     lid_height=10,
-    items=create_equally_spaced(Well,
+    items=create_equally_spaced_2d(Well,
       num_items_x=24,
       num_items_y=8,
       dx=10.15,
@@ -623,7 +630,7 @@ def Cos_96_Rd(name: str, with_lid: bool = False) -> Plate:
     with_lid=with_lid,
     model="Cos_96_Rd",
     lid_height=10,
-    items=create_equally_spaced(Well,
+    items=create_equally_spaced_2d(Well,
       num_items_x=12,
       num_items_y=8,
       dx=10.55,
@@ -665,7 +672,7 @@ def Cos_96_SpecOps(name: str, with_lid: bool = False) -> Plate:
     with_lid=with_lid,
     model="Cos_96_SpecOps",
     lid_height=10,
-    items=create_equally_spaced(Well,
+    items=create_equally_spaced_2d(Well,
       num_items_x=12,
       num_items_y=8,
       dx=10.55,
@@ -707,7 +714,7 @@ def Cos_96_UV(name: str, with_lid: bool = False) -> Plate:
     with_lid=with_lid,
     model="Cos_96_UV",
     lid_height=10,
-    items=create_equally_spaced(Well,
+    items=create_equally_spaced_2d(Well,
       num_items_x=12,
       num_items_y=8,
       dx=10.55,
@@ -751,7 +758,7 @@ def Cos_96_Vb(name: str, with_lid: bool = False) -> Plate:
     with_lid=with_lid,
     model="Cos_96_Vb",
     lid_height=10,
-    items=create_equally_spaced(Well,
+    items=create_equally_spaced_2d(Well,
       num_items_x=12,
       num_items_y=8,
       dx=10.55,
@@ -777,25 +784,45 @@ def Cos_96_Vb_P(name: str, with_lid: bool = False) -> Plate:
   return Cos_96_Vb(name=name, with_lid=with_lid).rotated(90)
 
 
-def _compute_volume_from_height_Cos_6_Fb(h: float):
+############ User-defined PLR Cos plates ############
+
+
+# # # # # # # # # # Cos_6_MWP_16800ul_Fb # # # # # # # # # #
+
+def _compute_volume_from_height_Cos_6_MWP_16800ul_Fb(h: float):
   if h > 18.0:
-    raise ValueError(f"Height {h} is too large for Cos_6_Fb")
+    raise ValueError(f"Height {h} is too large for Cos_6_MWP_16800ul_Fb")
   return calculate_liquid_volume_container_1segment_round_fbottom(
     d=35.0,
     h_cylinder=18.2,
     liquid_height=h)
 
-def Cos_6_Fb(name: str, with_lid: bool = True) -> Plate:
-  # Corning-Costar product no.: 3516; well_volume=16.8 mL
+def _compute_height_from_volume_Cos_6_MWP_16800ul_Fb(liquid_volume: float):
+  if liquid_volume > 17_640: # 5% tolerance
+    raise ValueError(f"Volume {liquid_volume} is too large for Cos_6_MWP_16800ul_Fb")
+  return calculate_liquid_height_container_1segment_round_fbottom(
+    d=35.0,
+    h_cylinder=18.2,
+    liquid_volume=liquid_volume)
+
+def Cos_6_MWP_16800ul_Fb(name: str, with_lid: bool = True) -> Plate:
+  """Corning-Costar 6-well multi-well plate (MWP); product no.: 3516.
+  - Material: ?
+  - Cleanliness: 3516: sterilized by gamma irradiation
+  - Nonreversible lids with condensation rings to reduce contamination
+  - Treated for optimal cell attachment
+  - Cell growth area: 9.5 cm² (approx.)  
+  - Total volume: 16.8 mL
+  """
   return Plate(
     name=name,
     size_x=127.0,
     size_y=86.0,
     size_z=19.85,
     with_lid=with_lid,
-    model="Cos_6_Fb",
+    model="Cos_6_MWP_16800ul_Fb",
     lid_height=2,
-    items=create_equally_spaced(Well,
+    items=create_equally_spaced_2d(Well,
       num_items_x=3,
       num_items_y=2,
       dx=7.0,
@@ -807,15 +834,80 @@ def Cos_6_Fb(name: str, with_lid: bool = True) -> Plate:
       size_y=35.0,
       size_z=17.5,
       bottom_type=WellBottomType.FLAT,
-      compute_volume_from_height=_compute_volume_from_height_Cos_6_Fb,
-      cross_section_type=CrossSectionType.CIRCLE
+      cross_section_type=CrossSectionType.CIRCLE,
+      compute_volume_from_height=_compute_volume_from_height_Cos_6_MWP_16800ul_Fb,
+      compute_height_from_volume=_compute_height_from_volume_Cos_6_MWP_16800ul_Fb,
     ),
   )
 
-#: Azenta4titudeFrameStar_96_wellplate_skirted_L
-def Cos_6_Fb_L(name: str, with_lid: bool = True) -> Plate:
-  return Cos_6_Fb(name=name, with_lid=with_lid)
+def Cos_6_MWP_16800ul_Fb_L(name: str, with_lid: bool = True) -> Plate:
+  return Cos_6_MWP_16800ul_Fb(name=name, with_lid=with_lid)
 
-#: Azenta4titudeFrameStar_96_wellplate_skirted_P
-def Cos_6_Fb_P(name: str, with_lid: bool = True) -> Plate:
-  return Cos_6_Fb(name=name, with_lid=with_lid).rotated(90)
+def Cos_6_MWP_16800ul_Fb_P(name: str, with_lid: bool = True) -> Plate:
+  return Cos_6_MWP_16800ul_Fb(name=name, with_lid=with_lid).rotated(90)
+
+
+# # # # # # # # # # Cos_96_DWP_2mL_Vb # # # # # # # # # #
+
+def _compute_volume_from_height_Cos_96_DWP_2mL_Vb(h: float) -> float:
+  if h > 44.1: # 5% tolerance
+    raise ValueError(f"Height {h} is too large for Cos_96_DWP_2mL_Vb")
+  return calculate_liquid_volume_container_2segments_square_vbottom(
+    x=7.8,
+    y=7.8,
+    h_pyramid=4.0,
+    h_cube=38.0,
+    liquid_height=h)
+
+def _compute_height_from_volume_Cos_96_DWP_2mL_Vb(liquid_volume: float):
+  if liquid_volume > 2_100: # 5% tolerance
+    raise ValueError(f"Volume {liquid_volume} is too large for Cos_96_DWP_2mL_Vb")
+  return round(calculate_liquid_height_in_container_2segments_square_vbottom(
+    x=7.8,
+    y=7.8,
+    h_pyramid=4.0,
+    h_cube=38.0,
+    liquid_volume=liquid_volume),3)
+
+
+def Cos_96_DWP_2mL_Vb(name: str, with_lid: bool = False) -> Plate:
+  """ Corning 96 deep-well 2 mL PCR plate. Corning cat. no.: 3960
+  - Material: Polypropylene
+  - Resistant to many common organic solvents (e.g., DMSO, ethanol, methanol)
+  - 3960: Sterile and DNase- and RNase-free
+  - Total volume: 2 mL
+  - Features uniform skirt heights for greater robotic gripping surface
+  """
+  return Plate(
+    name=name,
+    size_x=127.0,
+    size_y=86.0,
+    size_z=43.5,
+    with_lid=with_lid,
+    model="Cos_96_DWP_2mL_Vb",
+    lid_height=10,
+    items=create_equally_spaced_2d(Well,
+      num_items_x=12,
+      num_items_y=8,
+      dx=10.5,
+      dy=7.5,
+      dz=1.4,
+      item_dx=9.0,
+      item_dy=9.0,
+      size_x=8.0,
+      size_y=8.0,
+      size_z=42.0,
+      bottom_type=WellBottomType.V,
+      cross_section_type=CrossSectionType.RECTANGLE,
+      compute_volume_from_height=_compute_volume_from_height_Cos_96_DWP_2mL_Vb,
+      compute_height_from_volume=_compute_height_from_volume_Cos_96_DWP_2mL_Vb
+    ),
+  )
+
+def Cos_96_DWP_2mL_Vb_L(name: str, with_lid: bool = False) -> Plate:
+  """ Cos_96_DWP_2mL_Vb """
+  return Cos_96_DWP_2mL_Vb(name=name, with_lid=with_lid)
+
+def Cos_96_DWP_2mL_Vb_P(name: str, with_lid: bool = False) -> Plate:
+  """ Cos_96_DWP_2mL_Vb """
+  return Cos_96_DWP_2mL_Vb(name=name, with_lid=with_lid).rotated(90)
