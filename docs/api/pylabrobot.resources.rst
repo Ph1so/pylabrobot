@@ -45,6 +45,17 @@ Azenta
     corning_axygen.plates
 
 
+Biorad
+------
+
+.. autosummary::
+  :toctree: _autosummary
+  :nosignatures:
+  :recursive:
+
+    biorad.plates
+
+
 Boekel
 ------
 
@@ -89,18 +100,6 @@ Falcon
     falcon.tubes
 
 
-Greiner
--------
-
-.. autosummary::
-  :toctree: _autosummary
-  :nosignatures:
-  :recursive:
-
-    greiner
-    greiner.plates
-
-
 Hamilton
 --------
 
@@ -113,18 +112,6 @@ Hamilton
     hamilton.hamilton_decks.HamiltonDeck
     hamilton.STARDeck
     hamilton.STARLetDeck
-
-
-Limbro
-------
-
-.. autosummary::
-  :toctree: _autosummary
-  :nosignatures:
-  :recursive:
-
-    limbro
-    limbro.plates
 
 
 ML Star resources

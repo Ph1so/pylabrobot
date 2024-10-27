@@ -53,14 +53,13 @@ from .resource_stack import ResourceStack
 from .agenbio import *
 from .alpaqua import *
 from .azenta import *
+from .biorad import *
 from .boekel import *
 from .corning_costar import *
 from .corning_axygen import *
 from .eppendorf import *
 from .falcon import *
-from .greiner import *
 from .hamilton import *
-from .limbro import *
 from .ml_star import *
 from .opentrons import *
 from .porvair import *
